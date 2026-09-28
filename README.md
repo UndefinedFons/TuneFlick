@@ -50,7 +50,7 @@ TuneFlick 是一款 macOS 菜单栏音乐控制工具，为日常使用的音乐
 
 ## 播放器支持
 
-主要接入的播放器包括：
+默认支持以下播放器：
 
 - Apple Music
 - Spotify
@@ -60,7 +60,7 @@ TuneFlick 是一款 macOS 菜单栏音乐控制工具，为日常使用的音乐
 
 另外内置 Tidal、Deezer、Doppler、IINA 与 VLC 的应用识别。播放器需要向 macOS 发布 Now Playing 状态并接受系统的上一首、下一首命令；多播放器同时运行时，以系统当前播放源为准。
 
-播放器识别配置、控制接口接入与真机测试是不同的验证层级。具体发布版本的测试范围和未验证项见 [发布说明](https://github.com/UndefinedFons/TuneFlick/releases)。
+各版本的兼容性说明见 [发布说明](https://github.com/UndefinedFons/TuneFlick/releases)。
 
 ### 兼容性边界
 
