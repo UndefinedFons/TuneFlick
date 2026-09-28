@@ -9,7 +9,18 @@ fi
 INSTALLER_PATH="$(cd "$(dirname "$1")" && pwd)/$(basename "$1")"
 mkdir -p "$PROJECT_DIR/.build"
 CHECK_DIR="$(mktemp -d "$PROJECT_DIR/.build/installer-check.XXXXXX")"
-trap 'rm -rf "$CHECK_DIR"' EXIT
+CHECK_VOLUME="$CHECK_DIR/volume"
+CHECK_MOUNTED=false
+cleanup() {
+    if [ "$CHECK_MOUNTED" = true ]; then
+        if ! hdiutil detach -quiet "$CHECK_VOLUME"; then
+            echo "Could not unmount installer verification at $CHECK_VOLUME. Eject that volume before removing $CHECK_DIR." >&2
+            return 1
+        fi
+    fi
+    rm -rf "$CHECK_DIR"
+}
+trap cleanup EXIT
 
 pkgutil --expand "$INSTALLER_PATH" "$CHECK_DIR/raw"
 DISTRIBUTION="$CHECK_DIR/raw/Distribution"
@@ -73,8 +84,13 @@ entries.each do |path|
 end
 RUBY
 
-pkgutil --expand-full "$INSTALLER_PATH" "$CHECK_DIR/expanded"
-PAYLOAD_ROOT="$CHECK_DIR/expanded/TuneFlick.pkg/Payload"
+# Keep the extracted signed bundles out of file-provider metadata processing.
+hdiutil create -quiet -size 64m -fs HFS+ -volname TuneFlickVerification "$CHECK_DIR/payload.dmg"
+mkdir -p "$CHECK_VOLUME"
+hdiutil attach -quiet -nobrowse -noautoopen -mountpoint "$CHECK_VOLUME" "$CHECK_DIR/payload.dmg"
+CHECK_MOUNTED=true
+pkgutil --expand-full "$INSTALLER_PATH" "$CHECK_VOLUME/expanded"
+PAYLOAD_ROOT="$CHECK_VOLUME/expanded/TuneFlick.pkg/Payload"
 APP_DIR="$PAYLOAD_ROOT/Applications/TuneFlick.app"
 APP_INFO="$APP_DIR/Contents/Info.plist"
 APP_VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP_INFO")"
@@ -95,6 +111,10 @@ for document in LICENSE THIRD_PARTY_LICENSES.md; do
 done
 # The archived metadata was checked above; remove only local extraction metadata.
 xattr -cr "$APP_DIR"
+hdiutil detach -quiet "$CHECK_VOLUME"
+CHECK_MOUNTED=false
+hdiutil attach -quiet -readonly -nobrowse -noautoopen -mountpoint "$CHECK_VOLUME" "$CHECK_DIR/payload.dmg"
+CHECK_MOUNTED=true
 codesign --verify --deep --strict --all-architectures "$APP_DIR"
 
 echo "Installer checks passed: /Applications/TuneFlick.app, Universal 2, macOS requirement, payload metadata and app signature integrity."
