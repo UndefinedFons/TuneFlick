@@ -24,14 +24,14 @@ TuneFlick 是一款 macOS 菜单栏音乐控制工具，为日常使用的音乐
 
 ## 安装
 
-1. 从 [Releases](https://github.com/UndefinedFons/TuneFlick/releases/latest) 下载 Universal 版本，解压后将 `TuneFlick.app` 放入“应用程序”文件夹。
-2. 打开应用。TuneFlick 不会弹出主窗口或显示 Dock 图标，请点击菜单栏中的双脚音符打开控制面板。
+1. 从 [Releases](https://github.com/UndefinedFons/TuneFlick/releases/latest) 下载名称含 `universal` 的 `.pkg` 安装包。双击并按安装向导继续，TuneFlick 会安装到系统的“应用程序”文件夹，无需手动拖动。安装时可能需要输入管理员密码。
+2. 在“应用程序”中打开 TuneFlick。应用不会弹出主窗口或显示 Dock 图标，请点击菜单栏中的双脚音符打开控制面板。
 3. 按面板提示，在“系统设置 → 隐私与安全性”中允许 TuneFlick 使用辅助功能和输入监控。授权后返回应用，确认面板显示“已就绪”。
 4. 在支持的播放器中开始播放音乐，再使用两指横滑。TuneFlick 只控制 macOS 当前的音乐播放源。
 
-同一个 Universal 2 应用包含 `x86_64` 和 `arm64`，无需根据 Mac 型号分别下载。
+同一个 Universal 2 安装包包含 Intel（`x86_64`）和 Apple Silicon（`arm64`）两种架构，无需根据 Mac 型号分别下载。Release 同时提供 `.zip`，供需要手动放置应用的用户选择。
 
-应用使用本地临时签名，未经过 Apple 公证。首次打开若被系统阻止，请在“系统设置 → 隐私与安全性”中选择“仍要打开”，并确认应用来自本仓库。无需关闭系统的安全保护。
+安装包尚无 Developer ID 安装程序签名；应用使用本地临时签名，两者均未经过 Apple 公证。首次打开安装包或应用若被系统阻止，请先确认下载来自本仓库，再在“系统设置 → 隐私与安全性”中选择“仍要打开”。无需关闭系统的安全保护。
 
 ## 使用方式
 
@@ -98,6 +98,14 @@ xcrun lipo -archs build/TuneFlick.app/Contents/MacOS/TuneFlick
 ./Scripts/install-app.sh
 open ~/Applications/TuneFlick.app
 ```
+
+构建安装到系统“应用程序”文件夹的 Universal 安装包：
+
+```bash
+./Scripts/build-installer.sh
+```
+
+安装包生成在 `build/release-artifacts/` 中。
 
 ## 致谢与许可证
 
