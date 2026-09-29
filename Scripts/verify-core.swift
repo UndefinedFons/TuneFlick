@@ -7,6 +7,8 @@ enum CoreVerification {
 
     static func main() {
         verifyModifiers()
+        verifySelectedModifierRouting()
+        verifyPanelModifierHints()
         verifyRouting()
         verifySources()
         verifyCommands()
@@ -53,6 +55,71 @@ enum CoreVerification {
         let restored = GesturePreferences(defaults: defaults)
         expect(!restored.gesturesEnabled && restored.backgroundModifier == .option && restored.reverseSwipe,
                "Preferences were not persisted")
+        for selected in GestureModifier.allCases {
+            preferences.backgroundModifier = selected
+            expect(restored.backgroundModifier == selected, "Selected modifier did not update or persist")
+        }
+    }
+
+    private static func verifySelectedModifierRouting() {
+        for selected in GestureModifier.allCases {
+            for foreground in [true, false] {
+                var router = ScrollGestureRouter()
+                let capture = { () -> ScrollGestureRouter.Context? in
+                    guard GestureActivationPolicy.allowsCapture(foreground: foreground,
+                        flags: selected.modifierFlag, backgroundModifier: selected) else { return nil }
+                    return .init(foreground: foreground, reverse: false, targetBundleIdentifier: "com.spotify.client")
+                }
+                let began = router.process(.init(horizontal: 12, began: true, timestamp: 1), captureContext: capture)
+                expect(began.consume == !foreground, "Selected modifier must preserve foreground scrolling and capture background scrolling")
+                let ended = router.process(.init(horizontal: 13, ended: true, timestamp: 1.1), captureContext: capture)
+                expect(ended.direction == (foreground ? nil : .right), "Selected modifier routed to the wrong foreground/background action")
+                let momentum = router.process(.init(horizontal: 30, momentum: true, momentumEnded: true, timestamp: 1.2), captureContext: { nil })
+                expect(momentum.consume == !foreground && momentum.direction == nil, "Selected modifier must preserve gesture ownership through momentum")
+            }
+        }
+    }
+
+    private final class PanelDelegate: TuneFlickPanelDelegate {
+        var modifier = GestureModifier.control
+
+        func panelState() -> TuneFlickPanelState {
+            .init(gesturesEnabled: true, modifier: modifier, reverseSwipe: false,
+                  accessibilityGranted: true, listenGranted: true, postEventGranted: true, monitoringReady: true)
+        }
+
+        func setBackgroundModifier(_ modifier: GestureModifier) { self.modifier = modifier }
+        func setGesturesEnabled(_ enabled: Bool) {}
+        func setReverseSwipe(_ reverseSwipe: Bool) {}
+        func requestAccessibilityPermission() { fatalError("Panel verification must not request system permissions") }
+        func terminateApplication() { fatalError("Panel verification must not terminate an application") }
+    }
+
+    private static func verifyPanelModifierHints() {
+        func descendants(_ view: NSView) -> [NSView] {
+            [view] + view.subviews.flatMap(descendants)
+        }
+        let delegate = PanelDelegate()
+        let panel = ControlPanelViewController(delegate: delegate)
+        let views = descendants(panel.view)
+        let labels = views.compactMap { $0 as? NSTextField }
+        let popup = views.compactMap { $0 as? NSPopUpButton }.first!
+        let quit = views.compactMap { $0 as? NSButton }.first { $0.title == "退出" }!
+        expect(labels.contains { $0.stringValue == "修饰键" }, "Modifier setting must describe both foreground and background")
+        expect(popup.accessibilityLabel() == "手势修饰键", "Accessible modifier label must not imply background-only behavior")
+        for selected in GestureModifier.allCases {
+            delegate.setBackgroundModifier(selected)
+            panel.refresh()
+            let expected = "前台直滑切歌 · \(selected.title) 原生横滑 · 后台按修饰键"
+            let hint = labels.first { $0.stringValue == expected }
+            expect(hint != nil, "Panel hint did not follow the selected modifier")
+            expect(popup.titleOfSelectedItem == selected.shortcutTitle, "Panel selection did not follow the selected modifier")
+            expect(hint!.intrinsicContentSize.width + quit.intrinsicContentSize.width + 16 <= panel.view.bounds.width - 32,
+                   "Selected modifier hint would overflow the panel footer")
+            if selected != .control {
+                expect(!labels.contains { $0.stringValue.contains("Control 原生横滑") }, "Panel retained a fixed Control hint after changing the modifier")
+            }
+        }
     }
 
     private static func verifyRouting() {

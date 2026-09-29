@@ -249,7 +249,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, TuneFlickPanelDelegate
         button.image = statusIcon ?? NSImage(systemSymbolName: "music.note.list", accessibilityDescription: "TuneFlick")
         button.imageScaling = .scaleProportionallyDown
         button.toolTip = preferences.gesturesEnabled
-            ? "TuneFlick · 前台直滑切歌 / Control + 横滑保留原生操作 · 后台 \(preferences.backgroundModifier.shortcutTitle) + 横滑"
+            ? "TuneFlick · 前台直滑切歌 / \(preferences.backgroundModifier.shortcutTitle) + 横滑保留原生操作 · 后台 \(preferences.backgroundModifier.shortcutTitle) + 横滑"
             : "TuneFlick · 手势已暂停"
     }
 

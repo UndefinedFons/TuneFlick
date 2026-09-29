@@ -25,6 +25,7 @@ final class ControlPanelViewController: NSViewController {
     private let modifierPopup = NSPopUpButton(frame: .zero, pullsDown: false)
     private let reverseSwitch = NSSwitch()
     private let statusLabel = NSTextField(labelWithString: "")
+    private let gestureHint = NSTextField(labelWithString: "")
     private let previousAction = NSTextField(labelWithString: "上一首")
     private let nextAction = NSTextField(labelWithString: "下一首")
     private let previousDirection = NSImageView()
@@ -70,7 +71,7 @@ final class ControlPanelViewController: NSViewController {
         stack.addArrangedSubview(spacer(5))
         stack.addArrangedSubview(separator())
         stack.addArrangedSubview(spacer(3))
-        stack.addArrangedSubview(settingRow("后台修饰键", detail: "播放器在后台时，按住此键横滑切歌", control: modifierPopup))
+        stack.addArrangedSubview(settingRow("修饰键", detail: "按住此键：前台原生滑动，后台切歌", control: modifierPopup))
         stack.addArrangedSubview(settingRow("反向滑动", detail: "交换上一首与下一首的方向", control: reverseSwitch))
         stack.addArrangedSubview(spacer(3))
         stack.addArrangedSubview(separator())
@@ -82,11 +83,12 @@ final class ControlPanelViewController: NSViewController {
         permissionSection.addArrangedSubview(horizontal([permissionLabel, flexibleSpace(), permissionButton]))
         stack.addArrangedSubview(permissionSection)
         stack.addArrangedSubview(spacer(7))
-        let hint = text("前台直滑切歌 · Control 原生横滑 · 后台按修饰键", size: 10, secondary: true)
+        gestureHint.font = .systemFont(ofSize: 10)
+        gestureHint.textColor = .secondaryLabelColor
         let quit = NSButton(title: "退出", target: self, action: #selector(quitApp))
         quit.bezelStyle = .inline
         quit.controlSize = .small
-        stack.addArrangedSubview(horizontal([hint, flexibleSpace(), quit]))
+        stack.addArrangedSubview(horizontal([gestureHint, flexibleSpace(), quit]))
         refresh()
     }
 
@@ -95,6 +97,7 @@ final class ControlPanelViewController: NSViewController {
         enabledSwitch.state = state.gesturesEnabled ? .on : .off
         reverseSwitch.state = state.reverseSwipe ? .on : .off
         modifierPopup.selectItem(withTitle: state.modifier.shortcutTitle)
+        gestureHint.stringValue = "前台直滑切歌 · \(state.modifier.title) 原生横滑 · 后台按修饰键"
         statusLabel.stringValue = statusText(for: state)
         previousDirection.image = NSImage(systemSymbolName: state.reverseSwipe ? "arrow.right" : "arrow.left", accessibilityDescription: nil)
         nextDirection.image = NSImage(systemSymbolName: state.reverseSwipe ? "arrow.left" : "arrow.right", accessibilityDescription: nil)
@@ -121,7 +124,7 @@ final class ControlPanelViewController: NSViewController {
         modifierPopup.controlSize = .small
         modifierPopup.font = .systemFont(ofSize: 11)
         modifierPopup.widthAnchor.constraint(equalToConstant: 104).isActive = true
-        modifierPopup.setAccessibilityLabel("后台切歌修饰键")
+        modifierPopup.setAccessibilityLabel("手势修饰键")
         permissionLabel.font = .systemFont(ofSize: 11)
         permissionLabel.textColor = .secondaryLabelColor
         permissionButton.target = self
