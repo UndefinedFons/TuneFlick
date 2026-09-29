@@ -35,8 +35,9 @@ enum CoreVerification {
             for mask in 0..<16 {
                 var flags: NSEvent.ModifierFlags = []
                 for index in 0..<4 where mask & (1 << index) != 0 { flags.insert(all[index]) }
-                expect(GestureActivationPolicy.allowsCapture(foreground: true, flags: flags, backgroundModifier: selected) == (mask == 0),
-                       "Foreground must capture only plain gestures")
+                let foregroundCapture = mask == 0 || ([1, 2, 4, 8].contains(mask) && flags != selected.modifierFlag)
+                expect(GestureActivationPolicy.allowsCapture(foreground: true, flags: flags, backgroundModifier: selected) == foregroundCapture,
+                       "Foreground capture mismatch: selected \(selected.title), modifier mask \(mask)")
                 expect(GestureActivationPolicy.allowsCapture(foreground: false, flags: flags, backgroundModifier: selected) == (flags == selected.modifierFlag),
                        "Background must require exactly the selected modifier")
             }
@@ -63,19 +64,29 @@ enum CoreVerification {
 
     private static func verifySelectedModifierRouting() {
         for selected in GestureModifier.allCases {
-            for foreground in [true, false] {
-                var router = ScrollGestureRouter()
-                let capture = { () -> ScrollGestureRouter.Context? in
-                    guard GestureActivationPolicy.allowsCapture(foreground: foreground,
-                        flags: selected.modifierFlag, backgroundModifier: selected) else { return nil }
-                    return .init(foreground: foreground, reverse: false, targetBundleIdentifier: "com.spotify.client")
+            for pressed in GestureModifier.allCases {
+                for foreground in [true, false] {
+                    let expectedCapture = foreground ? pressed != selected : pressed == selected
+                    for direction in [SwipeDirection.left, .right] {
+                        var router = ScrollGestureRouter()
+                        let capture = { () -> ScrollGestureRouter.Context? in
+                            guard GestureActivationPolicy.allowsCapture(foreground: foreground,
+                                flags: pressed.modifierFlag, backgroundModifier: selected) else { return nil }
+                            return .init(foreground: foreground, reverse: false, targetBundleIdentifier: "com.spotify.client")
+                        }
+                        let sign: CGFloat = direction == .left ? -1 : 1
+                        let scenario = "selected \(selected.title), pressed \(pressed.title), foreground \(foreground), direction \(direction)"
+                        let began = router.process(.init(horizontal: sign * 12, began: true, timestamp: 1), captureContext: capture)
+                        expect(began.consume == expectedCapture && began.direction == nil,
+                               "Modifier gesture ownership mismatch: \(scenario)")
+                        let ended = router.process(.init(horizontal: sign * 13, ended: true, timestamp: 1.1), captureContext: capture)
+                        expect(ended.consume == expectedCapture && ended.direction == (expectedCapture ? direction : nil),
+                               "Modifier gesture action mismatch: \(scenario)")
+                        let momentum = router.process(.init(horizontal: sign * 30, momentum: true, momentumEnded: true, timestamp: 1.2), captureContext: { nil })
+                        expect(momentum.consume == expectedCapture && momentum.direction == nil,
+                               "Modifier gesture momentum ownership mismatch: \(scenario)")
+                    }
                 }
-                let began = router.process(.init(horizontal: 12, began: true, timestamp: 1), captureContext: capture)
-                expect(began.consume == !foreground, "Selected modifier must preserve foreground scrolling and capture background scrolling")
-                let ended = router.process(.init(horizontal: 13, ended: true, timestamp: 1.1), captureContext: capture)
-                expect(ended.direction == (foreground ? nil : .right), "Selected modifier routed to the wrong foreground/background action")
-                let momentum = router.process(.init(horizontal: 30, momentum: true, momentumEnded: true, timestamp: 1.2), captureContext: { nil })
-                expect(momentum.consume == !foreground && momentum.direction == nil, "Selected modifier must preserve gesture ownership through momentum")
             }
         }
     }

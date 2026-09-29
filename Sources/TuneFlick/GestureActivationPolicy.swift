@@ -3,7 +3,10 @@ import AppKit
 enum GestureActivationPolicy {
     static func allowsCapture(foreground: Bool, flags: NSEvent.ModifierFlags, backgroundModifier: GestureModifier) -> Bool {
         let modifiers = flags.intersection([.control, .option, .command, .shift])
-        // Modified foreground gestures belong to the player; background needs exactly one selected key.
-        return foreground ? modifiers.isEmpty : modifiers == backgroundModifier.modifierFlag
+        if foreground {
+            // Leave multi-key shortcuts with the player rather than repurposing them for playback.
+            return modifiers != backgroundModifier.modifierFlag && modifiers.rawValue.nonzeroBitCount <= 1
+        }
+        return modifiers == backgroundModifier.modifierFlag
     }
 }
